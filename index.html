@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neon Snake - Telegram Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0d17;
+      --card-bg: #15192d;
+      --accent: #00f3ff;
+      --accent-pink: #ff0055;
+      --accent-gold: #ffbd00;
+      --text: #ffffff;
+      --text-sub: #8a92b2;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 100vh;
+      overflow: hidden;
+      padding: 12px;
+    }
+
+    /* Top Bar */
+    .header-bar {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 10px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-pink));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .stats-group {
+      display: flex;
+      gap: 14px;
+    }
+
+    .stat-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .stat-box.coins { color: var(--accent-gold); }
+    .stat-box.score { color: var(--accent); }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 420px;
+      margin: 10px 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-sub);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .tab-btn.active {
+      background: rgba(0, 243, 255, 0.1);
+      color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.2);
+    }
+
+    /* Main View Containers */
+    .view-container {
+      width: 100%;
+      max-width: 420px;
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .view-container.active {
+      display: flex;
+    }
+
+    /* Game Canvas Board */
+    .game-board-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 1;
+      background: #0f1222;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      box-shadow: 0 0 25px rgba(0, 243, 255, 0.15);
+      overflow: hidden;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Mobile D-Pad Controls */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 58px);
+      grid-template-rows: repeat(3, 58px);
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .btn-ctrl {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      color: var(--text);
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.1s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .btn-ctrl:active {
+      background: var(--accent);
+      color: #000;
+      transform: scale(0.95);
+    }
+
+    .btn-up { grid-column: 2; grid-row: 1; }
+    .btn-left { grid-column: 1; grid-row: 2; }
+    .btn-right { grid-column: 3; grid-row: 2; }
+    .btn-down { grid-column: 2; grid-row: 3; }
+
+    /* Overlay Overlay / Modal */
+    .game-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(11, 13, 23, 0.88);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      z-index: 10;
+    }
+
+    .game-overlay h2 {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent), var(--accent-pink));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, var(--accent), #00a2ff);
+      color: #000;
+      font-weight: 800;
+      font-size: 16px;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+      transition: transform 0.2s;
+    }
+
+    .primary-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Shop View */
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      width: 100%;
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .shop-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    .shop-card.equipped {
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(0, 243, 255, 0.2);
+    }
+
+    .skin-preview {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .buy-btn {
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .buy-btn.buy {
+      background: var(--accent-gold);
+      color: #000;
+    }
+
+    .buy-btn.use {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .buy-btn.disabled {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-sub);
+    }
+
+    /* Leaderboard View */
+    .leaderboard-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .lb-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      border-radius: 14px;
+    }
+
+    .lb-item.user-highlight {
+      border-color: var(--accent-pink);
+      background: rgba(255, 0, 85, 0.08);
+      margin-top: 10px;
+    }
+
+    .lb-rank {
+      font-weight: 800;
+      width: 30px;
+      color: var(--accent-gold);
+    }
+
+    .lb-name {
+      flex: 1;
+      font-weight: 600;
+    }
+
+    .lb-score {
+      font-weight: 800;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Section -->
+  <div class="header-bar">
+    <div class="user-info">
+      <div class="user-avatar" id="avatar">N</div>
+      <div style="font-weight: 600; font-size: 14px;" id="username">Player</div>
+    </div>
+    <div class="stats-group">
+      <div class="stat-box coins">🪙 <span id="coin-count">0</span></div>
+      <div class="stat-box score">🏆 <span id="best-score">0</span></div>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="nav-tabs">
+    <div class="tab-btn active" onclick="switchTab('game')">🎮 Игра</div>
+    <div class="tab-btn" onclick="switchTab('shop')">🛍️ Магазин</div>
+    <div class="tab-btn" onclick="switchTab('leaderboard')">📊 Топ-5</div>
+  </div>
+
+  <!-- GAME VIEW -->
+  <div id="view-game" class="view-container active">
+    <div class="game-board-wrapper">
+      <canvas id="gameCanvas" width="360" height="360"></canvas>
+      <div id="overlay" class="game-overlay">
+        <h2 id="overlay-title">Neon Snake</h2>
+        <p style="color: var(--text-sub); font-size: 14px;" id="overlay-desc">Собери как можно больше неоновых сфер!</p>
+        <button class="primary-btn" onclick="startGame()">ИГРАТЬ</button>
+      </div>
+    </div>
+
+    <!-- D-Pad Controllers -->
+    <div class="controls">
+      <div class="btn-ctrl btn-up" onclick="handleInput('UP')">▲</div>
+      <div class="btn-ctrl btn-left" onclick="handleInput('LEFT')">◄</div>
+      <div class="btn-ctrl btn-right" onclick="handleInput('RIGHT')">►</div>
+      <div class="btn-ctrl btn-down" onclick="handleInput('DOWN')">▼</div>
+    </div>
+  </div>
+
+  <!-- SHOP VIEW -->
+  <div id="view-shop" class="view-container">
+    <div class="shop-grid" id="shop-container"></div>
+  </div>
+
+  <!-- LEADERBOARD VIEW -->
+  <div id="view-leaderboard" class="view-container">
+    <div class="leaderboard-list" id="lb-container"></div>
+  </div>
+
+  <script>
+    // Telegram Web App SDK Initialization
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      tg.ready();
+    }
+
+    // Player & State Management
+    let userData = {
+      name: tg?.initDataUnsafe?.user?.first_name || "Player",
+      coins: parseInt(localStorage.getItem('snake_coins')) || 0,
+      bestScore: parseInt(localStorage.getItem('snake_best')) || 0,
+      equippedSkin: localStorage.getItem('snake_skin') || 'classic',
+      ownedSkins: JSON.parse(localStorage.getItem('snake_owned_skins')) || ['classic']
+    };
+
+    // Skins Configuration
+    const SKINS = [
+      { id: 'classic', name: 'Neon Cyber', color: '#00f3ff', head: '#ffffff', price: 0, icon: '🩵' },
+      { id: 'viper', name: 'Toxic Viper', color: '#00ff66', head: '#ccff00', price: 100, icon: '🐍' },
+      { id: 'crimson', name: 'Ruby Demon', color: '#ff0055', head: '#ff7700', price: 250, icon: '🔥' },
+      { id: 'golden', name: 'Gold Dragon', color: '#ffbd00', head: '#ffffff', price: 500, icon: '👑' }
+    ];
+
+    // Mock Global Leaderboard Data
+    const mockLeaderboard = [
+      { rank: 1, name: "Alex_PRO", score: 1420 },
+      { rank: 2, name: "Sardor_Gamer", score: 1150 },
+      { rank: 3, name: "CryptoKing", score: 980 },
+      { rank: 4, name: "Nolik", score: 850 },
+      { rank: 5, name: "CyberNinja", score: 720 },
+    ];
+
+    // Game Variables
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const gridSize = 18;
+    const tileCount = canvas.width / gridSize;
+    
+    let snake = [];
+    let food = { x: 0, y: 0 };
+    let dx = gridSize, dy = 0;
+    let gameLoop = null;
+    let currentScore = 0;
+    let isPlaying = false;
+
+    // UI Updates
+    function updateUI() {
+      document.getElementById('coin-count').innerText = userData.coins;
+      document.getElementById('best-score').innerText = userData.bestScore;
+      document.getElementById('username').innerText = userData.name;
+      document.getElementById('avatar').innerText = userData.name.charAt(0).toUpperCase();
+
+      localStorage.setItem('snake_coins', userData.coins);
+      localStorage.setItem('snake_best', userData.bestScore);
+      localStorage.setItem('snake_skin', userData.equippedSkin);
+      localStorage.setItem('snake_owned_skins', JSON.stringify(userData.ownedSkins));
+    }
+
+    // Navigation Switcher
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.view-container').forEach(view => view.classList.remove('active'));
+
+      event.currentTarget.classList.add('active');
+      document.getElementById(`view-${tabName}`).classList.add('active');
+
+      if (tabName === 'shop') renderShop();
+      if (tabName === 'leaderboard') renderLeaderboard();
+    }
+
+    // --- GAME LOGIC ---
+    function startGame() {
+      document.getElementById('overlay').style.display = 'none';
+      snake = [
+        { x: 5 * gridSize, y: 10 * gridSize },
+        { x: 4 * gridSize, y: 10 * gridSize },
+        { x: 3 * gridSize, y: 10 * gridSize }
+      ];
+      dx = gridSize; dy = 0;
+      currentScore = 0;
+      isPlaying = true;
+      spawnFood();
+
+      if (gameLoop) clearInterval(gameLoop);
+      gameLoop = setInterval(updateGame, 110);
+    }
+
+    function spawnFood() {
+      food.x = Math.floor(Math.random() * tileCount) * gridSize;
+      food.y = Math.floor(Math.random() * tileCount) * gridSize;
+    }
+
+    function updateGame() {
+      if (!isPlaying) return;
+
+      // Move Head
+      const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+      // Wall Collision Game Over
+      if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height) {
+        return gameOver();
+      }
+
+      // Self Collision Game Over
+      for (let i = 0; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+          return gameOver();
+        }
+      }
+
+      snake.unshift(head);
+
+      // Eat Food
+      if (head.x === food.x && head.y === food.y) {
+        currentScore += 10;
+        userData.coins += 2;
+        updateUI();
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+
+      drawGame();
+    }
+
+    function drawGame() {
+      // Clear Canvas Background
+      ctx.fillStyle = '#0f1222';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Grid Lines (Subtle)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let i = 0; i < canvas.width; i += gridSize) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+      }
+
+      // Get Active Skin
+      const currentSkinObj = SKINS.find(s => s.id === userData.equippedSkin) || SKINS[0];
+
+      // Draw Snake
+      snake.forEach((part, index) => {
+        ctx.fillStyle = index === 0 ? currentSkinObj.head : currentSkinObj.color;
+        ctx.shadowColor = currentSkinObj.color;
+        ctx.shadowBlur = index === 0 ? 12 : 6;
+        ctx.fillRect(part.x + 1, part.y + 1, gridSize - 2, gridSize - 2);
+      });
+
+      // Draw Glowing Food
+      ctx.fillStyle = varColor('--accent-pink');
+      ctx.shadowColor = varColor('--accent-pink');
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(food.x + gridSize / 2, food.y + gridSize / 2, gridSize / 2 - 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Reset Shadow Blur
+      ctx.shadowBlur = 0;
+    }
+
+    function varColor(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function gameOver() {
+      isPlaying = false;
+      clearInterval(gameLoop);
+      if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('error');
+
+      if (currentScore > userData.bestScore) {
+        userData.bestScore = currentScore;
+      }
+      updateUI();
+
+      document.getElementById('overlay-title').innerText = 'GAME OVER';
+      document.getElementById('overlay-desc').innerText = `Счет: ${currentScore} | Заработано: +${Math.floor(currentScore / 5)} 🪙`;
+      document.getElementById('overlay').style.display = 'flex';
+    }
+
+    function handleInput(dir) {
+      if (!isPlaying) return;
+      if (dir === 'UP' && dy === 0) { dx = 0; dy = -gridSize; }
+      if (dir === 'DOWN' && dy === 0) { dx = 0; dy = gridSize; }
+      if (dir === 'LEFT' && dx === 0) { dx = -gridSize; dy = 0; }
+      if (dir === 'RIGHT' && dx === 0) { dx = gridSize; dy = 0; }
+      if (tg?.HapticFeedback) tg.HapticFeedback.selectionChanged();
+    }
+
+    // Keyboard controls support
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') handleInput('UP');
+      if (e.key === 'ArrowDown') handleInput('DOWN');
+      if (e.key === 'ArrowLeft') handleInput('LEFT');
+      if (e.key === 'ArrowRight') handleInput('RIGHT');
+    });
+
+    // --- SHOP SYSTEM ---
+    function renderShop() {
+      const shopContainer = document.getElementById('shop-container');
+      shopContainer.innerHTML = '';
+
+      SKINS.forEach(skin => {
+        const isOwned = userData.ownedSkins.includes(skin.id);
+        const isEquipped = userData.equippedSkin === skin.id;
+
+        const card = document.createElement('div');
+        card.className = `shop-card ${isEquipped ? 'equipped' : ''}`;
+        
+        let buttonHTML = '';
+        if (isEquipped) {
+          buttonHTML = `<button class="buy-btn disabled">ЭКИПИРОВАНО</button>`;
+        } else if (isOwned) {
+          buttonHTML = `<button class="buy-btn use" onclick="equipSkin('${skin.id}')">ВЫБРАТЬ</button>`;
+        } else {
+          const canBuy = userData.coins >= skin.price;
+          buttonHTML = `<button class="buy-btn ${canBuy ? 'buy' : 'disabled'}" onclick="buySkin('${skin.id}', ${skin.price})">${skin.price} 🪙</button>`;
+        }
+
+        card.innerHTML = `
+          <div class="skin-preview" style="background: rgba(255,255,255,0.05); border: 2px solid ${skin.color}">
+            ${skin.icon}
+          </div>
+          <div style="font-weight: 700; font-size: 14px;">${skin.name}</div>
+          ${buttonHTML}
+        `;
+        shopContainer.appendChild(card);
+      });
+    }
+
+    function buySkin(id, price) {
+      if (userData.coins >= price) {
+        userData.coins -= price;
+        userData.ownedSkins.push(id);
+        userData.equippedSkin = id;
+        updateUI();
+        renderShop();
+      }
+    }
+
+    function equipSkin(id) {
+      userData.equippedSkin = id;
+      updateUI();
+      renderShop();
+    }
+
+    // --- LEADERBOARD SYSTEM ---
+    function renderLeaderboard() {
+      const container = document.getElementById('lb-container');
+      container.innerHTML = '';
+
+      // Render Top 5
+      mockLeaderboard.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'lb-item';
+        row.innerHTML = `
+          <div class="lb-rank">#${item.rank}</div>
+          <div class="lb-name">${item.name}</div>
+          <div class="lb-score">${item.score}</div>
+        `;
+        container.appendChild(row);
+      });
+
+      // User Personal Rank
+      const userRank = 8; // Calculated user position
+      const userRow = document.createElement('div');
+      userRow.className = 'lb-item user-highlight';
+      userRow.innerHTML = `
+        <div class="lb-rank">#${userRank}</div>
+        <div class="lb-name">${userData.name} (Вы)</div>
+        <div class="lb-score">${userData.bestScore}</div>
+      `;
+      container.appendChild(userRow);
+    }
+
+    // Initial Load
+    updateUI();
+    drawGame();
+  </script>
+</body>
+</html>
